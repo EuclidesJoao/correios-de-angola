@@ -1,0 +1,99 @@
+/* Footer Container */
+.footer {
+    background-color: #e2211d;
+    color: white;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* Info Section */
+.info-section p {
+    margin: 0;
+    /* margin: 1rem 0; */
+    font-size: 1.1rem;
+    color: #f3f3f3;
+}
+.info-section .logo img{
+    width: 10rem;
+}
+
+.contact-info {
+    list-style: none;
+    padding: 0;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    /* margin-bottom: 1rem; */
+}
+
+.icon {
+    margin-right: 0.5rem;
+    /* color: #fbc706; */
+    color: white;
+}
+
+/* Links Section */
+.links-section {
+    flex: 1;
+}
+
+.links-section h3 {
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+    /* color: #ffd700; */
+}
+
+.quick-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 1.1rem;
+    color: #f3f3f3;
+}
+
+.quick-links li {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+}
+
+/* Social Media */
+.social-media {
+    display: flex;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    /* margin-top: 2rem; */
+}
+
+.social-link {
+    color: #f3f3f3;
+    font-size: 1.8rem;
+    transition: color 0.3s ease;
+}
+
+.social-link:hover {
+    color: #ffd700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .social-media {
+        justify-content: center;
+    }
+
+    .footer-content {
+        display: grid;
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
