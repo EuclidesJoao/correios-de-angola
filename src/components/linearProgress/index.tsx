@@ -9,28 +9,40 @@ function LinearProgressWithLabel(
   props: LinearProgressProps & { value: number }
 ) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-      <Box sx={{ width: "100%", mr: 1 }}>
-        <LinearProgress
-          variant="determinate"
-          {...props}
-          sx={{
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: "rgba(226, 33, 29, 0.2)",
-            // Styles the moving bar itself
-            "& .MuiLinearProgress-bar": {
+    <Box sx={{ display: "flex", flexDirection: 'column', alignItems: "center", width: "100%" }}>
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          width: "100%",
+          background: `linear-gradient(180deg,rgba(226, 33, 29, 1) 50%, rgba(0, 0, 0, 1) 50%)`,
+          padding: 1,
+        }}
+      ></Box>
+
+      <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+        <Box sx={{ width: "100%", mr: 1 }}>
+          <LinearProgress
+            variant="determinate"
+            {...props}
+            sx={{
+              height: 8,
               borderRadius: 4,
-              backgroundColor: "#e2211d",
-            },
-          }}
-        />
-      </Box>
-      <Box sx={{ minWidth: 35 }}>
-        <Typography
-          variant="body2"
-          sx={{ color: "text.secondary" }}
-        >{`${Math.round(props.value)}%`}</Typography>
+              backgroundColor: "rgba(226, 33, 29, 0.2)",
+              // Styles the moving bar itself
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 4,
+                backgroundColor: "#e2211d",
+              },
+            }}
+          />
+        </Box>
+        <Box sx={{ minWidth: 35 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary" }}
+          >{`${Math.round(props.value)}%`}</Typography>
+        </Box>
       </Box>
     </Box>
   );

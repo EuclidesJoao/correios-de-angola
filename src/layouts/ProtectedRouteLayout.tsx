@@ -4,7 +4,9 @@ import { Header } from "../components/header";
 import { Footer } from "../components/footer";
 
 const FullPageLoader = () => {
-  return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+  return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <h1>Carregando</h1>
+  </div>;
 };
 
 export const ProtectedRouteLayout = () => {
