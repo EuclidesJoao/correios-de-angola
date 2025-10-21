@@ -5,8 +5,8 @@ import { PageContent } from "../../interface";
 export const pageContentAPI = rootApi.injectEndpoints({
   endpoints: (builder) => ({
     getPageContentBySlug: builder.query<PageContent, string>({
-      query: (slug) => ({
-        url: `/wordpress/page/?title=${encodeURIComponent(slug)}`,
+      query: (pageName) => ({
+        url: `/wordpress/page/?title=${encodeURIComponent(pageName)}`,
         method: "GET",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,

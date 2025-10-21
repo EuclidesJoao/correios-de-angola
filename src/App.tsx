@@ -4,8 +4,7 @@ import { ProtectedRouteLayout } from "./layouts/ProtectedRouteLayout";
 import { Home } from "./pages/home";
 import { Login } from "./components/login";
 import { AuthProvider } from "./context/authContext";
-import React from "react";
-
+import { CalcularTarifas } from "./pages/calcular-tarifas";
 
 function AppRoutes() {
   
@@ -14,6 +13,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route element={<ProtectedRouteLayout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/calculo-tarifas" element={<CalcularTarifas/>} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

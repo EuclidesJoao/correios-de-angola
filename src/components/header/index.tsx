@@ -1,6 +1,6 @@
 import "./index.css";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Toolbar,
   Box,
@@ -27,6 +27,8 @@ import { LogoBrand, LogoBrandWhite } from "../logoBrand";
 import { useGetMenusQuery } from "../../features/menus/menusAPI";
 import { useGetSubmenusByIdQuery } from "../../features/menus/submenus.API";
 import { ApiMenuItem, ProcessedMenuItem } from "../../interface";
+import { useDispatch } from "react-redux";
+import { setSelectedSlug } from "../../features/pageContent/pageSlice";
 
 // === Constants ===
 const HOVER_DELAY = 150;
@@ -49,26 +51,28 @@ const ROUTE_MAP: { [key: string]: string } = {
 export const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-
-  // === State ===
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [menus, setMenus] = useState<ProcessedMenuItem[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
+  const [anchorEl, setAnchorEl] = useState<{
+    [key: string]: HTMLElement | null;
+  }>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(null);
-  const [submenuCache, setSubmenuCache] = useState<{ [key: string]: ProcessedMenuItem[] }>({});
+  const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(
+    null
+  );
+  const [submenuCache, setSubmenuCache] = useState<{
+    [key: string]: ProcessedMenuItem[];
+  }>({});
 
-  // === Refs ===
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // === API Data ===
   const { data: menuDatas } = useGetMenusQuery(undefined);
-  const { data: submenusData, isLoading: isLoadingSubmenus } =
+  const { data: submenusData, isFetching: isFetchingSubmenus } =
     useGetSubmenusByIdQuery(activeMenu || "", {
       skip: !activeMenu || !!submenuCache[activeMenu],
     });
 
-  // === Process menus ===
   useEffect(() => {
     if (!menuDatas) return;
 
@@ -77,7 +81,8 @@ export const Header = () => {
         id: parseInt(menu.id?.trim() || "0").toString(),
         position: parseInt(menu.position?.trim() || "0"),
         title: menu.title?.trim() || "",
-        submenus: submenuCache[parseInt(menu.id?.trim() || "0").toString()] || [],
+        submenus:
+          submenuCache[parseInt(menu.id?.trim() || "0").toString()] || [],
       }))
       .filter((menu) => menu.id !== "47" && menu.id !== "51")
       .sort((a, b) => a.position - b.position);
@@ -85,29 +90,38 @@ export const Header = () => {
     setMenus(processedMenus);
   }, [menuDatas, submenuCache]);
 
-  // === Process submenus ===
   useEffect(() => {
-    if (submenusData && activeMenu && !submenuCache[activeMenu]) {
-      const processedSubmenus: ProcessedMenuItem[] = (submenusData as ApiMenuItem[])
+    if (
+      submenusData &&
+      activeMenu &&
+      !submenuCache[activeMenu] &&
+      !isFetchingSubmenus
+    ) {
+      const processedSubmenus: ProcessedMenuItem[] = (
+        submenusData as ApiMenuItem[]
+      )
         .map((submenu) => ({
           id: submenu.id,
           position: parseInt(submenu.position?.trim() || "0"),
-          title: submenu.title?.trim() || "",
+          title: submenu.title || "",
         }))
         .sort((a, b) => a.position - b.position);
 
       setSubmenuCache((prev) => ({ ...prev, [activeMenu]: processedSubmenus }));
+
       setMenus((prev) =>
         prev.map((menu) =>
-          menu.id === activeMenu ? { ...menu, submenus: processedSubmenus } : menu
+          menu.id === activeMenu
+            ? { ...menu, submenus: processedSubmenus }
+            : menu
         )
       );
     }
-  }, [submenusData, activeMenu, submenuCache]);
+  }, [submenusData, activeMenu, submenuCache, isFetchingSubmenus]);
 
-  // === Utility ===
   const getRouteFromTitle = useCallback(
-    (title: string): string => ROUTE_MAP[title] || `/${title.toLowerCase().replace(/\s+/g, "-")}`,
+    (title: string): string =>
+      ROUTE_MAP[title] || `/${title.toLowerCase().replace(/\s+/g, "-")}`,
     []
   );
 
@@ -138,6 +152,24 @@ export const Header = () => {
     [clearCloseTimer]
   );
 
+  const handleCloseMenu = useCallback(() => {
+    clearCloseTimer();
+    setActiveMenu(null);
+  }, [clearCloseTimer]);
+
+  const handleSubmenuClick = useCallback(
+    (title: string) => {
+      if (title.trim() === "Cálculo de Tarifas") {
+        navigate("/calculo-tarifas");
+      } else {
+        dispatch(setSelectedSlug(title));
+      }
+
+      handleCloseMenu();
+    },
+    [dispatch, handleCloseMenu, navigate]
+  );
+
   const handleMenuLeave = useCallback(
     (event: React.MouseEvent<HTMLElement>) => {
       const relatedTarget = event.relatedTarget as HTMLElement;
@@ -149,12 +181,14 @@ export const Header = () => {
     [startCloseTimer]
   );
 
-  const handleSubmenuEnter = useCallback(() => clearCloseTimer(), [clearCloseTimer]);
-  const handleSubmenuLeave = useCallback(() => startCloseTimer(), [startCloseTimer]);
-  const handleCloseMenu = useCallback(() => {
-    clearCloseTimer();
-    setActiveMenu(null);
-  }, [clearCloseTimer]);
+  const handleSubmenuEnter = useCallback(
+    () => clearCloseTimer(),
+    [clearCloseTimer]
+  );
+  const handleSubmenuLeave = useCallback(
+    () => startCloseTimer(),
+    [startCloseTimer]
+  );
 
   const handleMobileMenuToggle = useCallback(
     (menuId: string) => {
@@ -166,7 +200,14 @@ export const Header = () => {
 
   // === Render Desktop ===
   const renderDesktopMenu = () => (
-    <Toolbar sx={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 2 }}>
+    <Toolbar
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        width: "100%",
+        gap: 2,
+      }}
+    >
       {/* Logo */}
       <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
         <NavLink to="/" style={{ textDecoration: "none" }}>
@@ -199,21 +240,25 @@ export const Header = () => {
               onMouseLeave={handleMenuLeave}
             >
               <Button
-                component={hasSubmenus ? "button" : NavLink}
-                to={hasSubmenus ? undefined : getRouteFromTitle(menu.title)}
+                component="button"
                 aria-haspopup={hasSubmenus ? "true" : "false"}
                 sx={{
                   color: "text.primary",
                   textTransform: "none",
                   padding: "8px 16px",
                   borderRadius: 1,
-                  "&:hover": { backgroundColor: "action.hover", color: "primary.main" },
+                  "&:hover": {
+                    backgroundColor: "action.hover",
+                    color: "primary.main",
+                  },
                   "&.active": { color: "primary.main", fontWeight: "bold" },
                 }}
-                endIcon={isMenuActive ? <ExpandMore fontSize="small" /> : undefined}
+                endIcon={
+                  isMenuActive ? <ExpandMore fontSize="small" /> : undefined
+                }
               >
                 {menu.title}
-                {isMenuActive && isLoadingSubmenus && hasSubmenus && (
+                {isMenuActive && isFetchingSubmenus && hasSubmenus && (
                   <CircularProgress size={16} sx={{ ml: 1 }} />
                 )}
               </Button>
@@ -245,25 +290,27 @@ export const Header = () => {
                       {submenus.map((submenu) => (
                         <ListItem
                           key={submenu.id}
+                          disablePadding
                           sx={{
-                            py: 1.5,
-                            px: 2,
                             borderBottom: "1px solid",
                             borderColor: "divider",
                             "&:last-child": { borderBottom: "none" },
-                            "&:hover": { backgroundColor: "action.hover" },
                           }}
                         >
                           <Button
-                            component={NavLink}
-                            to={getRouteFromTitle(submenu.title)}
-                            onClick={handleCloseMenu}
+                            onClick={() => handleSubmenuClick(submenu.title)}
                             sx={{
                               textTransform: "none",
                               color: "text.primary",
-                              padding: 0,
                               justifyContent: "flex-start",
                               width: "100%",
+                              borderRadius: 0,
+                              px: 2,
+                              py: 1.5,
+                              textAlign: "left",
+                              "&:hover": {
+                                backgroundColor: "action.hover",
+                              },
                             }}
                           >
                             <ListItemText
@@ -299,7 +346,9 @@ export const Header = () => {
 
   // === Render Mobile ===
   const renderMobileMenu = () => (
-    <Toolbar sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+    <Toolbar
+      sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}
+    >
       <NavLink to="/" style={{ textDecoration: "none" }}>
         <LogoBrandWhite />
       </NavLink>
@@ -328,7 +377,13 @@ export const Header = () => {
 
             return (
               <Box key={menu.id}>
-                <ListItem sx={{ borderBottom: "1px solid", borderColor: "divider", p: 0 }}>
+                <ListItem
+                  sx={{
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    p: 0,
+                  }}
+                >
                   <Button
                     component={hasSubmenus ? "button" : NavLink}
                     to={hasSubmenus ? undefined : getRouteFromTitle(menu.title)}
@@ -347,10 +402,18 @@ export const Header = () => {
                         setMobileMenuOpen(false);
                       }
                     }}
-                    endIcon={hasSubmenus ? (isExpanded ? <ExpandLess /> : <ExpandMore />) : undefined}
+                    endIcon={
+                      hasSubmenus ? (
+                        isExpanded ? (
+                          <ExpandLess />
+                        ) : (
+                          <ExpandMore />
+                        )
+                      ) : undefined
+                    }
                   >
                     {menu.title}
-                    {isExpanded && isLoadingSubmenus && hasSubmenus && (
+                    {isExpanded && isFetchingSubmenus && hasSubmenus && (
                       <CircularProgress size={16} sx={{ mr: 1 }} />
                     )}
                   </Button>
@@ -387,9 +450,19 @@ export const Header = () => {
         </List>
 
         <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography variant="body2">PT | EN</Typography>
-            <IconButton component={NavLink} to="/search" onClick={() => setMobileMenuOpen(false)}>
+            <IconButton
+              component={NavLink}
+              to="/search"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               <SearchIcon />
             </IconButton>
           </Box>

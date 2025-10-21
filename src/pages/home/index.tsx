@@ -1,12 +1,11 @@
 import { CarouselComponent } from "../../components/carousel";
-import GetPageContent from "../../components/getPage";
-
+import PageContent from "../pageContent";
 
 export const Home = () => {
   return (
     <>
       <CarouselComponent />
-      <GetPageContent content="Home Page Content" />
+      <PageContent />
     </>
   );
 };
