@@ -4,15 +4,16 @@ ul {
   padding: 0;
 }
 
-header {
+.header {
   position: absolute;
-  z-index: 50;
+  z-index: 1000; /* Increased z-index */
   top: 1rem;
   right: 0;
   left: 0;
 }
 
 .head {
+  position: relative;
   width: 100%;
   background-color: rgba(255, 255, 255, 0.945);
   border-radius: 0 0 8rem 8rem;
@@ -28,13 +29,13 @@ header {
   width: 12rem;
 }
 
-header .head .navigators li a {
+.header .head .navigators li a {
   text-transform: uppercase;
   font-weight: 500;
   margin-right: 1rem;
 }
 
-header .idioms {
+.header .idioms {
   gap: 0.5rem;
 }
 

@@ -1,23 +1,20 @@
 import "./index.css";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  AppBar,
   Toolbar,
   Box,
-  Menu,
-  MenuItem,
-  Typography,
-  IconButton,
-  useMediaQuery,
-  useTheme,
   Paper,
   List,
   ListItem,
   ListItemText,
   Collapse,
   Button,
-  Container,
+  IconButton,
+  Typography,
+  CircularProgress,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -27,208 +24,172 @@ import {
   ExpandLess,
 } from "@mui/icons-material";
 import { LogoBrand, LogoBrandWhite } from "../logoBrand";
-import {
-  useGetMenusQuery,
-  useGetSubmenusByIdQuery,
-} from "../../features/menus/menusAPI";
+import { useGetMenusQuery } from "../../features/menus/menusAPI";
+import { useGetSubmenusByIdQuery } from "../../features/menus/submenus.API";
+import { ApiMenuItem, ProcessedMenuItem } from "../../interface";
 
-// Base interface for all menu items from API
-interface ApiMenuItem {
-  id: string;
-  position: string;
-  title: string;
-}
-
-// Processed menu items for internal use
-interface ProcessedMenuItem {
-  id: string;
-  position: number;
-  title: string;
-  submenus?: ProcessedMenuItem[];
-}
+// === Constants ===
+const HOVER_DELAY = 150;
+const ROUTE_MAP: { [key: string]: string } = {
+  Institucional: "/institucional",
+  Serviços: "/servicos",
+  Ferramentas: "/ferramentas",
+  Informações: "/informacoes",
+  Filatelia: "/filatelia",
+  Tracking: "/tracking",
+  "E-commerce": "/ecommerce",
+  "Precisa de Ajuda?": "/ajuda",
+  "Sobre Nós": "/sobre-nos",
+  "Estrutura Organizacional": "/estrutura-organizacional",
+  "Responsabilidade Social e Sustentabilidade": "/responsabilidade-social",
+  "Notícias e Actualizações": "/noticias",
+  "Parcerias Estratégicas": "/parcerias",
+};
 
 export const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const {
-    data: menuDatas,
-    isLoading,
-    error,
-  } = useGetMenusQuery(undefined, {
-    skip: !localStorage.getItem("access_token"),
-  });
 
+  // === State ===
   const [menus, setMenus] = useState<ProcessedMenuItem[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [anchorEl, setAnchorEl] = useState<{
-    [key: string]: HTMLElement | null;
-  }>({});
+  const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(
-    null
-  );
-  const headerRef = useRef<HTMLElement>(null);
+  const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(null);
+  const [submenuCache, setSubmenuCache] = useState<{ [key: string]: ProcessedMenuItem[] }>({});
 
-  // Fetch submenus for active menu
-  const { data: submenusData } = useGetSubmenusByIdQuery(activeMenu || "", {
-    skip: !activeMenu,
-  });
+  // === Refs ===
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // === API Data ===
+  const { data: menuDatas } = useGetMenusQuery(undefined);
+  const { data: submenusData, isLoading: isLoadingSubmenus } =
+    useGetSubmenusByIdQuery(activeMenu || "", {
+      skip: !activeMenu || !!submenuCache[activeMenu],
+    });
+
+  // === Process menus ===
   useEffect(() => {
-    if (menuDatas) {
-      console.log("MENU DATAS: ", menuDatas);
+    if (!menuDatas) return;
 
-      const sortedMenus = (menuDatas as ApiMenuItem[])
-        .map((menu: ApiMenuItem) => ({
-          id: menu.id,
-          position: parseInt(menu.position?.trim() || "0"),
-          title: menu.title?.trim() || "",
-          submenus: [],
-        }))
-        .sort(
-          (a: ProcessedMenuItem, b: ProcessedMenuItem) =>
-            a.position - b.position
-        );
+    const processedMenus = (menuDatas as ApiMenuItem[])
+      .map((menu) => ({
+        id: parseInt(menu.id?.trim() || "0").toString(),
+        position: parseInt(menu.position?.trim() || "0"),
+        title: menu.title?.trim() || "",
+        submenus: submenuCache[parseInt(menu.id?.trim() || "0").toString()] || [],
+      }))
+      .filter((menu) => menu.id !== "47" && menu.id !== "51")
+      .sort((a, b) => a.position - b.position);
 
-      setMenus(sortedMenus);
-      console.log("PROCESSED MENUS: ", sortedMenus);
-    }
-  }, [menuDatas]);
+    setMenus(processedMenus);
+  }, [menuDatas, submenuCache]);
 
-  // Update submenus when submenusData changes
+  // === Process submenus ===
   useEffect(() => {
-    if (submenusData && activeMenu) {
-      console.log("SUBMENUS DATA for menu", activeMenu, ":", submenusData);
-
-      // Process submenus data - sort by position and clean titles
-      const processedSubmenus: ProcessedMenuItem[] = (
-        submenusData as unknown as ApiMenuItem[]
-      )
-        .map((submenu: ApiMenuItem) => ({
+    if (submenusData && activeMenu && !submenuCache[activeMenu]) {
+      const processedSubmenus: ProcessedMenuItem[] = (submenusData as ApiMenuItem[])
+        .map((submenu) => ({
           id: submenu.id,
           position: parseInt(submenu.position?.trim() || "0"),
           title: submenu.title?.trim() || "",
         }))
-        .sort(
-          (a: ProcessedMenuItem, b: ProcessedMenuItem) =>
-            a.position - b.position
-        );
+        .sort((a, b) => a.position - b.position);
 
-      setMenus((prevMenus) =>
-        prevMenus.map((menu) =>
-          menu.id === activeMenu
-            ? { ...menu, submenus: processedSubmenus }
-            : menu
+      setSubmenuCache((prev) => ({ ...prev, [activeMenu]: processedSubmenus }));
+      setMenus((prev) =>
+        prev.map((menu) =>
+          menu.id === activeMenu ? { ...menu, submenus: processedSubmenus } : menu
         )
       );
     }
-  }, [submenusData, activeMenu]);
+  }, [submenusData, activeMenu, submenuCache]);
 
-  const handleMenuEnter = (
-    menuId: string,
-    event: React.MouseEvent<HTMLElement>
-  ) => {
-    console.log("Hovering menu:", menuId);
-    setActiveMenu(menuId);
-    setAnchorEl((prev) => ({ ...prev, [menuId]: event.currentTarget }));
-  };
+  // === Utility ===
+  const getRouteFromTitle = useCallback(
+    (title: string): string => ROUTE_MAP[title] || `/${title.toLowerCase().replace(/\s+/g, "-")}`,
+    []
+  );
 
-  const handleMenuLeave = () => {
-    setTimeout(() => {
-      if (!document.activeElement?.closest(".MuiPaper-root")) {
-        setActiveMenu(null);
-        setAnchorEl({});
+  const clearCloseTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const startCloseTimer = useCallback(() => {
+    clearCloseTimer();
+    timerRef.current = setTimeout(() => setActiveMenu(null), HOVER_DELAY);
+  }, [clearCloseTimer]);
+
+  useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
+
+  // === Event Handlers ===
+  const handleMenuEnter = useCallback(
+    (menuId: string, event: React.MouseEvent<HTMLElement>) => {
+      clearCloseTimer();
+
+      // Immediately close previous submenu if switching
+      setActiveMenu((prev) => (prev !== menuId ? menuId : prev));
+
+      setAnchorEl((prev) => ({ ...prev, [menuId]: event.currentTarget }));
+    },
+    [clearCloseTimer]
+  );
+
+  const handleMenuLeave = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      const relatedTarget = event.relatedTarget as HTMLElement;
+      // Only close when leaving all menus, not switching
+      if (!relatedTarget?.closest(".menu-container")) {
+        startCloseTimer();
       }
-    }, 100);
-  };
+    },
+    [startCloseTimer]
+  );
 
-  const handleSubmenuEnter = () => {
-    // Keep submenu open when hovering over it
-  };
-
-  const handleSubmenuLeave = () => {
+  const handleSubmenuEnter = useCallback(() => clearCloseTimer(), [clearCloseTimer]);
+  const handleSubmenuLeave = useCallback(() => startCloseTimer(), [startCloseTimer]);
+  const handleCloseMenu = useCallback(() => {
+    clearCloseTimer();
     setActiveMenu(null);
-    setAnchorEl({});
-  };
+  }, [clearCloseTimer]);
 
-  const handleMobileMenuToggle = (menuId: string) => {
-    setExpandedMobileMenu(expandedMobileMenu === menuId ? null : menuId);
-  };
+  const handleMobileMenuToggle = useCallback(
+    (menuId: string) => {
+      setExpandedMobileMenu((prev) => (prev === menuId ? null : menuId));
+      if (!submenuCache[menuId]) setActiveMenu(menuId);
+    },
+    [submenuCache]
+  );
 
-  // Generate routes from menu titles
-  const getRouteFromTitle = (title: string): string => {
-    const routeMap: { [key: string]: string } = {
-      Institucional: "/institucional",
-      Serviços: "/servicos",
-      Ferramentas: "/ferramentas",
-      Informações: "/informacoes",
-      Filatelia: "/filatelia",
-      Tracking: "/tracking",
-      "E-commerce": "/ecommerce",
-      "Precisa de Ajuda?": "/ajuda",
-      "Sobre Nós": "/sobre-nos",
-      "Estrutura Organizacional": "/estrutura-organizacional",
-      "Responsabilidade Social e Sustentabilidade": "/responsabilidade-social",
-      "Notícias e Actualizações": "/noticias",
-      "Parcerias Estratégicas": "/parcerias",
-    };
-
-    return routeMap[title] || `/${title.toLowerCase().replace(/\s+/g, "-")}`;
-  };
-
-  // Safe submenu filter
-  const getSafeSubmenus = (
-    submenus: ProcessedMenuItem[] | undefined
-  ): ProcessedMenuItem[] => {
-    if (!submenus) return [];
-    return submenus;
-  };
-
-  // Fallback menu data
-  const fallbackMenus: ProcessedMenuItem[] = [
-    { id: "1", title: "Institucional", position: 1 },
-    { id: "2", title: "Serviços", position: 2 },
-    { id: "3", title: "Ferramentas", position: 3 },
-    { id: "4", title: "Informações", position: 4 },
-    { id: "5", title: "Filatelia", position: 5 },
-    { id: "6", title: "Tracking", position: 6 },
-    { id: "7", title: "E-commerce", position: 7 },
-  ];
-
-  const displayMenus = menus.length > 0 ? menus : fallbackMenus;
-
-  // Debug: Log current state
-  useEffect(() => {
-    console.log("Current active menu:", activeMenu);
-    console.log(
-      "Current menus with submenus:",
-      menus.filter((menu) => menu.submenus && menu.submenus.length > 0)
-    );
-  }, [activeMenu, menus]);
-
-  // Desktop Navigation
+  // === Render Desktop ===
   const renderDesktopMenu = () => (
-    <Toolbar
-      sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}
-    >
+    <Toolbar sx={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 2 }}>
       {/* Logo */}
-      <Box sx={{ display: "flex", alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
         <NavLink to="/" style={{ textDecoration: "none" }}>
           <LogoBrand />
         </NavLink>
       </Box>
 
-      {/* Navigation Menu */}
+      {/* Menus */}
       <Box
+        className="menu-container"
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 2,
+          gap: 1,
+          flex: 1,
+          justifyContent: "center",
+          position: "relative",
         }}
       >
-        {displayMenus.map((menu) => {
-          const safeSubmenus = getSafeSubmenus(menu.submenus);
-          const hasSubmenus = safeSubmenus.length > 0;
+        {menus.map((menu) => {
+          const submenus = menu.submenus || [];
+          const hasSubmenus = submenus.length > 0;
+          const isMenuActive = activeMenu === menu.id;
 
           return (
             <Box
@@ -238,92 +199,97 @@ export const Header = () => {
               onMouseLeave={handleMenuLeave}
             >
               <Button
-                component={NavLink}
-                to={getRouteFromTitle(menu.title)}
+                component={hasSubmenus ? "button" : NavLink}
+                to={hasSubmenus ? undefined : getRouteFromTitle(menu.title)}
+                aria-haspopup={hasSubmenus ? "true" : "false"}
                 sx={{
                   color: "text.primary",
                   textTransform: "none",
                   padding: "8px 16px",
                   borderRadius: 1,
-                  transition: "all 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  minWidth: "auto",
-                  "&:hover": {
-                    backgroundColor: "action.hover",
-                    color: "primary.main",
-                  },
+                  "&:hover": { backgroundColor: "action.hover", color: "primary.main" },
+                  "&.active": { color: "primary.main", fontWeight: "bold" },
                 }}
-                endIcon={
-                  hasSubmenus ? <ExpandMore fontSize="small" /> : undefined
-                }
+                endIcon={isMenuActive ? <ExpandMore fontSize="small" /> : undefined}
               >
                 {menu.title}
+                {isMenuActive && isLoadingSubmenus && hasSubmenus && (
+                  <CircularProgress size={16} sx={{ ml: 1 }} />
+                )}
               </Button>
 
-              {/* Dropdown Menu */}
               {hasSubmenus && (
-                <Menu
-                  anchorEl={anchorEl[menu.id]}
-                  open={activeMenu === menu.id}
-                  onClose={handleSubmenuLeave}
-                  MenuListProps={{
-                    onMouseEnter: handleSubmenuEnter,
-                    onMouseLeave: handleSubmenuLeave,
-                    sx: { py: 0 },
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    zIndex: theme.zIndex.modal,
                   }}
-                  PaperProps={{
-                    sx: {
+                >
+                  <Paper
+                    sx={{
+                      display: isMenuActive ? "block" : "none",
                       mt: 1,
                       minWidth: 200,
                       boxShadow: 3,
                       borderRadius: 1,
-                    },
-                  }}
-                  transformOrigin={{ horizontal: "left", vertical: "top" }}
-                  anchorOrigin={{ horizontal: "left", vertical: "bottom" }}
-                >
-                  {safeSubmenus.map((submenu) => (
-                    <MenuItem
-                      key={submenu.id}
-                      component={NavLink}
-                      to={getRouteFromTitle(submenu.title)}
-                      onClick={handleSubmenuLeave}
-                      sx={{
-                        py: 1.5,
-                        px: 2,
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                        "&:last-child": { borderBottom: "none" },
-                        "&:hover": {
-                          backgroundColor: "action.hover",
-                        },
-                      }}
-                    >
-                      <ListItemText primary={submenu.title} />
-                    </MenuItem>
-                  ))}
-                </Menu>
+                      border: "1px solid",
+                      borderColor: "divider",
+                      overflow: "hidden",
+                    }}
+                    onMouseEnter={handleSubmenuEnter}
+                    onMouseLeave={handleSubmenuLeave}
+                  >
+                    <List sx={{ py: 0 }}>
+                      {submenus.map((submenu) => (
+                        <ListItem
+                          key={submenu.id}
+                          sx={{
+                            py: 1.5,
+                            px: 2,
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            "&:last-child": { borderBottom: "none" },
+                            "&:hover": { backgroundColor: "action.hover" },
+                          }}
+                        >
+                          <Button
+                            component={NavLink}
+                            to={getRouteFromTitle(submenu.title)}
+                            onClick={handleCloseMenu}
+                            sx={{
+                              textTransform: "none",
+                              color: "text.primary",
+                              padding: 0,
+                              justifyContent: "flex-start",
+                              width: "100%",
+                            }}
+                          >
+                            <ListItemText
+                              primary={submenu.title}
+                              primaryTypographyProps={{ variant: "body2" }}
+                            />
+                          </Button>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Paper>
+                </Box>
               )}
             </Box>
           );
         })}
       </Box>
 
-      {/* Search and Language */}
+      {/* Language + Search */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {/* Language Selector */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <IconButton size="small" sx={{ color: "text.primary" }}>
             <LanguageIcon fontSize="small" />
           </IconButton>
-          <Typography variant="body2" sx={{ color: "text.primary" }}>
-            PT | EN
-          </Typography>
+          <Typography variant="body2">PT | EN</Typography>
         </Box>
-
-        {/* Search */}
         <IconButton component={NavLink} to="/search">
           <SearchIcon />
         </IconButton>
@@ -331,27 +297,17 @@ export const Header = () => {
     </Toolbar>
   );
 
-  // Mobile Navigation
+  // === Render Mobile ===
   const renderMobileMenu = () => (
-    <Toolbar
-      sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}
-    >
-      {/* Logo */}
+    <Toolbar sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
       <NavLink to="/" style={{ textDecoration: "none" }}>
         <LogoBrandWhite />
       </NavLink>
 
-      {/* Mobile Menu Button */}
-      <IconButton
-        edge="end"
-        color="inherit"
-        aria-label="menu"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
+      <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
         <MenuIcon />
       </IconButton>
 
-      {/* Mobile Menu Drawer */}
       <Paper
         sx={{
           position: "absolute",
@@ -365,31 +321,25 @@ export const Header = () => {
         }}
       >
         <List sx={{ py: 0 }}>
-          {displayMenus.map((menu) => {
-            const safeSubmenus = getSafeSubmenus(menu.submenus);
-            const hasSubmenus = safeSubmenus.length > 0;
+          {menus.map((menu) => {
+            const submenus = menu.submenus || [];
+            const hasSubmenus = submenus.length > 0;
+            const isExpanded = expandedMobileMenu === menu.id;
 
             return (
               <Box key={menu.id}>
-                <ListItem
-                  sx={{
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
-                    padding: 0,
-                  }}
-                >
+                <ListItem sx={{ borderBottom: "1px solid", borderColor: "divider", p: 0 }}>
                   <Button
-                    component={NavLink}
-                    to={getRouteFromTitle(menu.title)}
+                    component={hasSubmenus ? "button" : NavLink}
+                    to={hasSubmenus ? undefined : getRouteFromTitle(menu.title)}
                     fullWidth
                     sx={{
                       justifyContent: "space-between",
                       textTransform: "none",
                       color: "text.primary",
-                      padding: "12px 16px",
-                      borderRadius: 0,
+                      p: "12px 16px",
                     }}
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLElement>) => {
                       if (hasSubmenus) {
                         e.preventDefault();
                         handleMobileMenuToggle(menu.id);
@@ -397,34 +347,20 @@ export const Header = () => {
                         setMobileMenuOpen(false);
                       }
                     }}
-                    endIcon={
-                      hasSubmenus ? (
-                        expandedMobileMenu === menu.id ? (
-                          <ExpandLess />
-                        ) : (
-                          <ExpandMore />
-                        )
-                      ) : undefined
-                    }
+                    endIcon={hasSubmenus ? (isExpanded ? <ExpandLess /> : <ExpandMore />) : undefined}
                   >
                     {menu.title}
+                    {isExpanded && isLoadingSubmenus && hasSubmenus && (
+                      <CircularProgress size={16} sx={{ mr: 1 }} />
+                    )}
                   </Button>
                 </ListItem>
 
-                {/* Mobile Submenu */}
                 {hasSubmenus && (
-                  <Collapse
-                    in={expandedMobileMenu === menu.id}
-                    timeout="auto"
-                    unmountOnExit
-                  >
-                    <List
-                      component="div"
-                      disablePadding
-                      sx={{ bgcolor: "background.default" }}
-                    >
-                      {safeSubmenus.map((submenu) => (
-                        <ListItem key={submenu.id} sx={{ padding: 0 }}>
+                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                      {submenus.map((submenu) => (
+                        <ListItem key={submenu.id} sx={{ p: 0 }}>
                           <Button
                             component={NavLink}
                             to={getRouteFromTitle(submenu.title)}
@@ -433,8 +369,7 @@ export const Header = () => {
                               justifyContent: "flex-start",
                               textTransform: "none",
                               color: "text.secondary",
-                              padding: "8px 32px",
-                              borderRadius: 0,
+                              p: "8px 32px",
                               fontSize: "0.9rem",
                             }}
                             onClick={() => setMobileMenuOpen(false)}
@@ -451,21 +386,10 @@ export const Header = () => {
           })}
         </List>
 
-        {/* Mobile Footer Actions */}
         <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="body2">PT | EN</Typography>
-            <IconButton
-              component={NavLink}
-              to="/search"
-              onClick={() => setMobileMenuOpen(false)}
-            >
+            <IconButton component={NavLink} to="/search" onClick={() => setMobileMenuOpen(false)}>
               <SearchIcon />
             </IconButton>
           </Box>
@@ -473,8 +397,9 @@ export const Header = () => {
       </Paper>
     </Toolbar>
   );
+
   return (
-    <header className="">
+    <header className="header">
       <div className="head container d-flex align-items-center justify-content-between">
         {isMobile ? renderMobileMenu() : renderDesktopMenu()}
       </div>

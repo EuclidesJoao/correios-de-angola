@@ -7,14 +7,14 @@ import Image1 from "../../assets/img/carosel001.png";
 import Image2 from "../../assets/img/carosel002.png";
 import Image3 from "../../assets/img/carosel003.png";
 
-interface SlideItem {
+interface SlideItems {
   name: string;
   image: string;
   alt: string;
 }
 
 // Define the carousel items in an array for easy management
-const items: SlideItem[] = [
+const items: SlideItems[] = [
   {
     name: "Slide 1",
     image: Image1,
@@ -32,57 +32,17 @@ const items: SlideItem[] = [
   },
 ];
 
-export const CarouselComponent = () => {
-  return (
-    <Carousel
-      autoPlay={true}
-      animation="slide"
-      indicators={true}
-      navButtonsAlwaysVisible={true}
-      cycleNavigation={true}
-      duration={700}
-      interval={5000}
-      indicatorIconButtonProps={{
-        style: {
-          padding: "8px",
-          color: "#ffffff80",
-        },
-      }}
-      activeIndicatorIconButtonProps={{
-        style: {
-          color: "#ffffff",
-        },
-      }}
-      navButtonsProps={{
-        style: {
-          backgroundColor: "rgba(0, 0, 0, 0.3)",
-          borderRadius: "50%",
-        },
-      }}
-    >
-      {items.map((item) => (
-        <SlideItem 
-          key={item.name} 
-          name={item.name} 
-          image={item.image} 
-          alt={item.alt} 
-        />
-      ))}
-    </Carousel>
-  );
-};
-
 // Component for a single slide
-const SlideItem: React.FC<SlideItem> = ({ name, image, alt }) => {
+const SlideItem: React.FC<SlideItems> = ({ name, image, alt }) => {
   return (
     <Paper
       elevation={6}
       sx={{
         position: "relative",
-        height: { xs: "30vh", md: "60vh" },
+        height: { xs: "30vh", md: "100vh" },
         overflow: "hidden",
-        borderRadius: "12px",
-        mx: { xs: 1, md: 2 },
+        borderRadius: "0 0 32rem 32rem ",
+        mx: { xs: 1, md: 0 },
       }}
     >
       <Box
@@ -100,5 +60,56 @@ const SlideItem: React.FC<SlideItem> = ({ name, image, alt }) => {
         }}
       />
     </Paper>
+  );
+};
+
+export const CarouselComponent = () => {
+  return (
+    <Carousel
+      autoPlay={true}
+      animation="slide"
+      indicators={true}
+      navButtonsAlwaysVisible={true}
+      cycleNavigation={true}
+      duration={700}
+      interval={5000}
+      sx={{ position: "relative !important" }}
+      indicatorIconButtonProps={{
+        style: {
+          padding: "8px",
+          color: "#e20e0eff",
+        },
+      }}
+      activeIndicatorIconButtonProps={{
+        style: {
+          color: "#ffffff",
+        },
+      }}
+      navButtonsProps={{
+        style: {
+          margin: "0 5rem 0 5rem",
+          backgroundColor: "rgba(0, 0, 0, 0.3)",
+          borderRadius: "50%",
+        },
+      }}
+      indicatorContainerProps={{
+        style: {
+          position: "absolute",
+          bottom: "20px", // Distance from bottom of image
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 2,
+        },
+      }}
+    >
+      {items.map((item) => (
+        <SlideItem
+          key={item.name}
+          name={item.name}
+          image={item.image}
+          alt={item.alt}
+        />
+      ))}
+    </Carousel>
   );
 };

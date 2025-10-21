@@ -21,9 +21,11 @@ export const ProtectedRouteLayout = () => {
   }
 
   return (
-    <div className="publiclayout">
+    <div className="publiclayout" style={{ position: 'relative', minHeight: '100vh' }}>
       <Header />
-      <Outlet />
+      <main style={{ marginTop: '0px' }}> {/* Add margin to prevent content overlap */}
+        <Outlet />
+      </main>
       <Footer />
     </div>
   );
