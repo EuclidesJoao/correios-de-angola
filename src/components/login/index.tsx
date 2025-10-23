@@ -11,10 +11,11 @@ const payload = {
 };
 
 export const Login = () => {
-  const [login, { isLoading, isError, isSuccess, data }] = useLoginMutation();
-  const { isAuthenticated, login: authLogin } = useAuth();
   const navigate = useNavigate();
+  const { isAuthenticated, login: authLogin } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [login, { isLoading, isError, isSuccess, data }] = useLoginMutation();
+  
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -29,7 +30,6 @@ export const Login = () => {
     }
   }, [isSuccess, data, authLogin]);
 
-  // Handle the redirect after progress completion
   useEffect(() => {
     if (shouldRedirect && isAuthenticated) {
       const redirectTimer = setTimeout(() => {
