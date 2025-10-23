@@ -20,7 +20,7 @@ export const Login = () => {
     if (!isAuthenticated) {
       login(payload);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, login]);
 
   useEffect(() => {
     if (isSuccess && data?.access_token) {
