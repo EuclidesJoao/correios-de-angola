@@ -55,6 +55,7 @@ export const Header = () => {
   const navigate = useNavigate();
   const [menus, setMenus] = useState<ProcessedMenuItem[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [anchorEl, setAnchorEl] = useState<{
     [key: string]: HTMLElement | null;
   }>({});
