@@ -6,7 +6,7 @@ export const submenuAPI = rootApi.injectEndpoints({
   endpoints: (builder) => ({
     getSubmenusById: builder.query<SubmenuResponse[], string>({
       query: (id) => ({
-        url: `wordpress/submenu/?menuID=${id}`,
+        url: `/wordpress/submenu/?menuID=${id}`,
         method: "GET",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
