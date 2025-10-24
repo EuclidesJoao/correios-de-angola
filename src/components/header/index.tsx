@@ -55,14 +55,17 @@ export const Header = () => {
   const navigate = useNavigate();
   const [menus, setMenus] = useState<ProcessedMenuItem[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [anchorEl, setAnchorEl] = useState<{
     [key: string]: HTMLElement | null;
   }>({});
+  
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(
     null
   );
+  
   const [submenuCache, setSubmenuCache] = useState<{
     [key: string]: ProcessedMenuItem[];
   }>({});
@@ -186,6 +189,7 @@ export const Header = () => {
     () => clearCloseTimer(),
     [clearCloseTimer]
   );
+
   const handleSubmenuLeave = useCallback(
     () => startCloseTimer(),
     [startCloseTimer]
