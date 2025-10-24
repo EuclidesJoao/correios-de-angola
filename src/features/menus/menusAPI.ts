@@ -6,7 +6,7 @@ export const menusAPI = rootApi.injectEndpoints({
   endpoints: (builder) => ({
     getMenus: builder.query<ApiMenuItem[], void>({
       query: () => ({
-        url: "/wordpress/menu/",
+        url: "wordpress/menu/",
         method: "GET",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
