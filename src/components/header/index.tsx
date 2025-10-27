@@ -77,6 +77,8 @@ export const Header = () => {
       skip: !activeMenu || !!submenuCache[activeMenu],
     });
 
+    console.log("Menus Data:", menuDatas);
+
   useEffect(() => {
     if (!menuDatas) return;
 

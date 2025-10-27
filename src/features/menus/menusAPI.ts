@@ -8,9 +8,6 @@ export const menusAPI = rootApi.injectEndpoints({
       query: () => ({
         url: "/wordpress/menu/",
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
       }),
     }),
   }),
