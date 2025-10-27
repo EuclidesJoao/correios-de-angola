@@ -1,4 +1,5 @@
-import { Box, Container, Typography } from "@mui/material";
+// features/auth/Login.tsx
+import { Box, Container, Typography, Button } from "@mui/material"; // Import Button
 import { useEffect, useState } from "react";
 import { useLoginMutation } from "../../features/auth/authAPI";
 import LinearWithValueLabel from "../linearProgress";
@@ -15,7 +16,6 @@ export const Login = () => {
   const { isAuthenticated, login: authLogin } = useAuth();
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [login, { isLoading, isError, isSuccess, data }] = useLoginMutation();
-  
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -67,10 +67,28 @@ export const Login = () => {
   if (isError) {
     return (
       <Box sx={{ padding: 4 }}>
-        <Container maxWidth="md">
-          <Typography color="error">
+        <Container
+          maxWidth="md"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "80vh",
+          }}
+        >
+          <Typography color="error" gutterBottom>
             Falha no login. Tente novamente.
           </Typography>
+
+          {/* ADD THIS BUTTON */}
+          <Button
+            variant="contained"
+            onClick={() => login(payload)}
+            sx={{ mt: 2 }}
+          >
+            Tentar Novamente
+          </Button>
         </Container>
       </Box>
     );
