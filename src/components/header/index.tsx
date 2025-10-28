@@ -364,7 +364,7 @@ export const Header = () => {
       sx={{ display: "flex", justifyContent: "space-between", width: "100%" }}
     >
       <NavLink to="/" style={{ textDecoration: "none" }}>
-        <LogoBrandWhite />
+        <LogoBrand />
       </NavLink>
 
       <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
