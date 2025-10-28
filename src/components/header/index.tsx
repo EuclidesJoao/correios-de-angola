@@ -23,7 +23,7 @@ import {
   ExpandMore,
   ExpandLess,
 } from "@mui/icons-material";
-import { LogoBrand, LogoBrandWhite } from "../logoBrand";
+import { LogoBrand } from "../logoBrand";
 import { useGetMenusQuery } from "../../features/menus/menusAPI";
 import { useGetSubmenusByIdQuery } from "../../features/menus/submenus.API";
 import { ApiMenuItem, ProcessedMenuItem } from "../../interface";
