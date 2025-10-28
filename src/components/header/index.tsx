@@ -77,8 +77,6 @@ export const Header = () => {
       skip: !activeMenu || !!submenuCache[activeMenu],
     });
 
-    console.log("Menus Data:", menuDatas);
-
   useEffect(() => {
     if (!menuDatas) return;
 
@@ -164,16 +162,21 @@ export const Header = () => {
   }, [clearCloseTimer]);
 
   const handleSubmenuClick = useCallback(
-    (title: string) => {
+    (title: string, isMobile = false) => {
       if (title.trim() === "Cálculo de Tarifas") {
         navigate("/calculo-tarifas");
       } else {
+        const route = getRouteFromTitle(title);
         dispatch(setSelectedSlug(title));
+        navigate(route);
       }
 
       handleCloseMenu();
+      if (isMobile) {
+        setMobileMenuOpen(false);
+      }
     },
-    [dispatch, handleCloseMenu, navigate]
+    [dispatch, handleCloseMenu, navigate, getRouteFromTitle]
   );
 
   const handleMenuLeave = useCallback(
@@ -200,9 +203,13 @@ export const Header = () => {
   const handleMobileMenuToggle = useCallback(
     (menuId: string) => {
       setExpandedMobileMenu((prev) => (prev === menuId ? null : menuId));
-      if (!submenuCache[menuId]) setActiveMenu(menuId);
+      
+      // Only fetch submenus if we're expanding and don't have them cached
+      if (expandedMobileMenu !== menuId && !submenuCache[menuId]) {
+        setActiveMenu(menuId);
+      }
     },
-    [submenuCache]
+    [submenuCache, expandedMobileMenu]
   );
 
   // === Render Desktop ===
@@ -406,7 +413,7 @@ export const Header = () => {
                         e.preventDefault();
                         handleMobileMenuToggle(menu.id);
                       } else {
-                        setMobileMenuOpen(false);
+                        handleSubmenuClick(menu.title, true);
                       }
                     }}
                     endIcon={
@@ -432,8 +439,6 @@ export const Header = () => {
                       {submenus.map((submenu) => (
                         <ListItem key={submenu.id} sx={{ p: 0 }}>
                           <Button
-                            component={NavLink}
-                            to={getRouteFromTitle(submenu.title)}
                             fullWidth
                             sx={{
                               justifyContent: "flex-start",
@@ -442,7 +447,7 @@ export const Header = () => {
                               p: "8px 32px",
                               fontSize: "0.9rem",
                             }}
-                            onClick={() => setMobileMenuOpen(false)}
+                            onClick={() => handleSubmenuClick(submenu.title, true)}
                           >
                             {submenu.title}
                           </Button>
