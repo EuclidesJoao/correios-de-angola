@@ -60,22 +60,31 @@ export const Header = () => {
   const [anchorEl, setAnchorEl] = useState<{
     [key: string]: HTMLElement | null;
   }>({});
-  
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(
     null
   );
-  
+
   const [submenuCache, setSubmenuCache] = useState<{
     [key: string]: ProcessedMenuItem[];
   }>({});
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { data: menuDatas } = useGetMenusQuery(undefined);
+
+  // Use a separate query for mobile submenus to avoid conflicts
+  const { data: mobileSubmenusData, isFetching: isFetchingMobileSubmenus } =
+    useGetSubmenusByIdQuery(expandedMobileMenu || "", {
+      skip: !expandedMobileMenu || !!submenuCache[expandedMobileMenu],
+    });
+
   const { data: submenusData, isFetching: isFetchingSubmenus } =
     useGetSubmenusByIdQuery(activeMenu || "", {
       skip: !activeMenu || !!submenuCache[activeMenu],
     });
+
+  console.log("Mobile submenus", submenusData);
 
   useEffect(() => {
     if (!menuDatas) return;
@@ -94,6 +103,7 @@ export const Header = () => {
     setMenus(processedMenus);
   }, [menuDatas, submenuCache]);
 
+  // Handle desktop submenu data
   useEffect(() => {
     if (
       submenusData &&
@@ -122,6 +132,44 @@ export const Header = () => {
       );
     }
   }, [submenusData, activeMenu, submenuCache, isFetchingSubmenus]);
+
+  // Handle mobile submenu data
+  useEffect(() => {
+    if (
+      mobileSubmenusData &&
+      expandedMobileMenu &&
+      !submenuCache[expandedMobileMenu] &&
+      !isFetchingMobileSubmenus
+    ) {
+      const processedSubmenus: ProcessedMenuItem[] = (
+        mobileSubmenusData as ApiMenuItem[]
+      )
+        .map((submenu) => ({
+          id: submenu.id,
+          position: parseInt(submenu.position?.trim() || "0"),
+          title: submenu.title || "",
+        }))
+        .sort((a, b) => a.position - b.position);
+
+      setSubmenuCache((prev) => ({
+        ...prev,
+        [expandedMobileMenu]: processedSubmenus,
+      }));
+
+      setMenus((prev) =>
+        prev.map((menu) =>
+          menu.id === expandedMobileMenu
+            ? { ...menu, submenus: processedSubmenus }
+            : menu
+        )
+      );
+    }
+  }, [
+    mobileSubmenusData,
+    expandedMobileMenu,
+    submenuCache,
+    isFetchingMobileSubmenus,
+  ]);
 
   const getRouteFromTitle = useCallback(
     (title: string): string =>
@@ -174,6 +222,7 @@ export const Header = () => {
       handleCloseMenu();
       if (isMobile) {
         setMobileMenuOpen(false);
+        setExpandedMobileMenu(null);
       }
     },
     [dispatch, handleCloseMenu, navigate, getRouteFromTitle]
@@ -202,15 +251,30 @@ export const Header = () => {
 
   const handleMobileMenuToggle = useCallback(
     (menuId: string) => {
-      setExpandedMobileMenu((prev) => (prev === menuId ? null : menuId));
-      
-      // Only fetch submenus if we're expanding and don't have them cached
-      if (expandedMobileMenu !== menuId && !submenuCache[menuId]) {
-        setActiveMenu(menuId);
-      }
+      setExpandedMobileMenu((prev) => {
+        // If we're closing the current menu or opening a different one
+        if (prev === menuId) {
+          return null; // Close it
+        } else {
+          return menuId; // Open the new one
+        }
+      });
     },
-    [submenuCache, expandedMobileMenu]
+    [] // Removed dependencies to avoid unnecessary re-renders
   );
+
+  // Preload submenus for mobile when menu opens
+  useEffect(() => {
+    if (mobileMenuOpen && menus.length > 0) {
+      // Preload all submenus when mobile menu opens
+      menus.forEach((menu) => {
+        if (!submenuCache[menu.id]) {
+          // This will trigger the submenu fetch through the expandedMobileMenu state
+          // We don't need to do anything else as the useEffect will handle it
+        }
+      });
+    }
+  }, [mobileMenuOpen, menus, submenuCache]);
 
   // === Render Desktop ===
   const renderDesktopMenu = () => (
@@ -386,8 +450,10 @@ export const Header = () => {
         <List sx={{ py: 0 }}>
           {menus.map((menu) => {
             const submenus = menu.submenus || [];
-            const hasSubmenus = submenus.length > 0;
+            const hasSubmenus = true;
             const isExpanded = expandedMobileMenu === menu.id;
+            const isLoading =
+              isExpanded && isFetchingMobileSubmenus && hasSubmenus;
 
             return (
               <Box key={menu.id}>
@@ -407,6 +473,7 @@ export const Header = () => {
                       textTransform: "none",
                       color: "text.primary",
                       p: "12px 16px",
+                      minHeight: "48px", // Ensure consistent height
                     }}
                     onClick={(e: React.MouseEvent<HTMLElement>) => {
                       if (hasSubmenus) {
@@ -418,7 +485,9 @@ export const Header = () => {
                     }}
                     endIcon={
                       hasSubmenus ? (
-                        isExpanded ? (
+                        isLoading ? (
+                          <CircularProgress size={16} />
+                        ) : isExpanded ? (
                           <ExpandLess />
                         ) : (
                           <ExpandMore />
@@ -427,8 +496,8 @@ export const Header = () => {
                     }
                   >
                     {menu.title}
-                    {isExpanded && isFetchingSubmenus && hasSubmenus && (
-                      <CircularProgress size={16} sx={{ mr: 1 }} />
+                    {hasSubmenus && isLoading && (
+                      <CircularProgress size={16} sx={{ ml: 1 }} />
                     )}
                   </Button>
                 </ListItem>
@@ -436,23 +505,32 @@ export const Header = () => {
                 {hasSubmenus && (
                   <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                     <List component="div" disablePadding>
-                      {submenus.map((submenu) => (
-                        <ListItem key={submenu.id} sx={{ p: 0 }}>
-                          <Button
-                            fullWidth
-                            sx={{
-                              justifyContent: "flex-start",
-                              textTransform: "none",
-                              color: "text.secondary",
-                              p: "8px 32px",
-                              fontSize: "0.9rem",
-                            }}
-                            onClick={() => handleSubmenuClick(submenu.title, true)}
-                          >
-                            {submenu.title}
-                          </Button>
+                      {isLoading ? (
+                        <ListItem sx={{ p: 2, justifyContent: "center" }}>
+                          <CircularProgress size={20} />
                         </ListItem>
-                      ))}
+                      ) : (
+                        submenus.map((submenu) => (
+                          <ListItem key={submenu.id} sx={{ p: 0 }}>
+                            <Button
+                              fullWidth
+                              sx={{
+                                justifyContent: "flex-start",
+                                textTransform: "none",
+                                color: "text.secondary",
+                                p: "8px 32px",
+                                fontSize: "0.9rem",
+                                minHeight: "40px",
+                              }}
+                              onClick={() =>
+                                handleSubmenuClick(submenu.title, true)
+                              }
+                            >
+                              {submenu.title}
+                            </Button>
+                          </ListItem>
+                        ))
+                      )}
                     </List>
                   </Collapse>
                 )}
