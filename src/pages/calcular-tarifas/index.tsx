@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Container,
@@ -20,6 +20,13 @@ import {
   Stack,
 } from "@mui/material";
 import { Calculate, Search } from "@mui/icons-material";
+// import useGetTarifariosQuery from "../../hooks/tarifarios/useGetTarifariosQuery";
+
+import {
+  useGetTarifariosQuery,
+  useGetProdutoByTarifarioQuery,
+  useGetRegiaoQuery,
+} from "../../features/tarifarios/tarifarios.API";
 
 // Types
 interface Tariff {
@@ -100,31 +107,53 @@ const TARIFF_DATA: Tariff[] = [
   },
 ];
 
-const TARIFF_TYPES = [
-  { value: "nacional", label: "Nacional" },
-  { value: "internacional", label: "Internacional" },
-];
 
-const PRODUCT_TYPES = [
-  { value: "carta", label: "Carta" },
-  { value: "encomenda", label: "Encomenda" },
-];
-
-const REGION_TYPES = [
-  { value: "local", label: "Local" },
-  { value: "nacional", label: "Nacional" },
-  { value: "internacional", label: "Internacional" },
-];
 
 export const CalcularTarifas: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
-    tarifario: "nacional",
-    produto: "carta",
-    regiao: "local",
+    tarifario: "",
+    produto: "",
+    regiao: "",
     peso: "",
   });
   const [calculatedTariff, setCalculatedTariff] = useState<Tariff | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+
+  const {
+    data: tarifariosData,
+    error: tarifariosError,
+    isLoading: tarifariosLoading,
+  } = useGetTarifariosQuery();
+  const {
+    data: produtosData,
+    error: produtosError,
+    isFetching: produtosFetching,
+  } = useGetProdutoByTarifarioQuery(formData.tarifario || "", {
+    skip: !formData.tarifario,
+  });
+  const {
+    data: regiaoData,
+    error: regiaoError,
+    isFetching: regiaoFetching,
+  } = useGetRegiaoQuery(undefined, { skip: !formData.produto });
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      produto: "",
+    }));
+  }, [formData.tarifario]);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      regiao: "",
+    }));
+  }, [formData.produto]);
+
+  console.log("Form Data: ", formData)
+  console.log("Tarifarios Data: ", tarifariosData)
+  console.log("Products Data: ", produtosData)
 
   const handleInputChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -183,9 +212,9 @@ export const CalcularTarifas: React.FC = () => {
 
   return (
     <Box
-      sx={{ py: 4, backgroundColor: "background.default", minHeight: "100vh", }}
+      sx={{ py: 4, backgroundColor: "background.default", minHeight: "100vh" }}
     >
-      <Container maxWidth="lg" sx={{mt: 10}}>
+      <Container maxWidth="lg" sx={{ mt: 10 }}>
         <Typography
           variant="h4"
           component="h1"
@@ -224,11 +253,26 @@ export const CalcularTarifas: React.FC = () => {
                       onChange={handleInputChange}
                       variant="outlined"
                     >
-                      {TARIFF_TYPES.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
+                      {tarifariosLoading ? (
+                        <MenuItem disabled>Carregando...</MenuItem>
+                      ) : tarifariosError ? (
+                        <MenuItem disabled>
+                          Erro ao carregar tarifários
                         </MenuItem>
-                      ))}
+                      ) : tarifariosData ? (
+                        tarifariosData.map((option: any) => (
+                          <MenuItem
+                            key={option.Descricao}
+                            value={option.Descricao}
+                          >
+                            {option.Descricao}
+                          </MenuItem>
+                        ))
+                      ) : (
+                        <MenuItem disabled>
+                          Nenhum tarifário disponível
+                        </MenuItem>
+                      )}
                     </TextField>
 
                     <TextField
@@ -238,15 +282,27 @@ export const CalcularTarifas: React.FC = () => {
                       name="produto"
                       value={formData.produto}
                       onChange={handleInputChange}
-                      variant="outlined"
+                      disabled={!formData.tarifario}
                     >
-                      {PRODUCT_TYPES.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
+                      {produtosFetching ? (
+                        <MenuItem disabled>Carregando...</MenuItem>
+                      ) : produtosError ? (
+                        <MenuItem disabled>Erro ao carregar produtos</MenuItem>
+                      ) : produtosData && produtosData.length > 0 ? (
+                        produtosData.map((option: any) => (
+                          <MenuItem
+                            key={option.Descricao}
+                            value={option.Descricao}
+                          >
+                            {option.Descricao}
+                          </MenuItem>
+                        ))
+                      ) : (
+                        <MenuItem disabled>Nenhum produto disponível</MenuItem>
+                      )}
                     </TextField>
 
+                    {/* REGIÃO */}
                     <TextField
                       select
                       fullWidth
@@ -254,13 +310,24 @@ export const CalcularTarifas: React.FC = () => {
                       name="regiao"
                       value={formData.regiao}
                       onChange={handleInputChange}
-                      variant="outlined"
+                      disabled={!formData.produto}
                     >
-                      {REGION_TYPES.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
+                      {regiaoFetching ? (
+                        <MenuItem disabled>Carregando...</MenuItem>
+                      ) : regiaoError ? (
+                        <MenuItem disabled>Erro ao carregar regiões</MenuItem>
+                      ) : regiaoData && regiaoData.length > 0 ? (
+                        regiaoData.map((option: any) => (
+                          <MenuItem
+                            key={option.Descricao}
+                            value={option.Descricao}
+                          >
+                            {option.Descricao}
+                          </MenuItem>
+                        ))
+                      ) : (
+                        <MenuItem disabled>Nenhuma região disponível</MenuItem>
+                      )}
                     </TextField>
 
                     <TextField
@@ -290,10 +357,13 @@ export const CalcularTarifas: React.FC = () => {
                       type="submit"
                       variant="contained"
                       size="large"
-                     
                       fullWidth
                       startIcon={<Calculate />}
-                      sx={{ py: 1.5, backgroundColor: "#e2211d", '&:hover': { backgroundColor: '#bf1a18' } }}
+                      sx={{
+                        py: 1.5,
+                        backgroundColor: "#e2211d",
+                        "&:hover": { backgroundColor: "#bf1a18" },
+                      }}
                     >
                       Calcular Tarifa
                     </Button>
@@ -340,12 +410,12 @@ export const CalcularTarifas: React.FC = () => {
                   sx={{ maxHeight: 400 }}
                 >
                   <Table stickyHeader size="small">
-                    <TableHead sx={{backgroundColor: '#e2211d !important'}}>
+                    <TableHead sx={{ backgroundColor: "#e2211d !important" }}>
                       <TableRow>
                         <TableCell
                           sx={{
                             fontWeight: "bold",
-                            backgroundColor: '#e2211d !important',
+                            backgroundColor: "#e2211d !important",
                             color: "white",
                           }}
                         >
@@ -354,7 +424,7 @@ export const CalcularTarifas: React.FC = () => {
                         <TableCell
                           sx={{
                             fontWeight: "bold",
-                             backgroundColor: '#e2211d !important',
+                            backgroundColor: "#e2211d !important",
                             color: "white",
                           }}
                         >
@@ -363,7 +433,7 @@ export const CalcularTarifas: React.FC = () => {
                         <TableCell
                           sx={{
                             fontWeight: "bold",
-                             backgroundColor: '#e2211d !important',
+                            backgroundColor: "#e2211d !important",
                             color: "white",
                           }}
                         >
@@ -372,7 +442,7 @@ export const CalcularTarifas: React.FC = () => {
                         <TableCell
                           sx={{
                             fontWeight: "bold",
-                             backgroundColor: '#e2211d !important',
+                            backgroundColor: "#e2211d !important",
                             color: "white",
                           }}
                         >
@@ -381,7 +451,7 @@ export const CalcularTarifas: React.FC = () => {
                         <TableCell
                           sx={{
                             fontWeight: "bold",
-                             backgroundColor: '#e2211d !important',
+                            backgroundColor: "#e2211d !important",
                             color: "white",
                           }}
                         >
