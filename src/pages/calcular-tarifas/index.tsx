@@ -32,7 +32,7 @@ interface Tariff {
   Peso_min: number;
   Peso_max: number;
   Regiao: string;
-  preco: number;
+  preco: string;
 }
 
 interface FormData {
@@ -54,10 +54,9 @@ export const CalcularTarifas: React.FC = () => {
     peso: "",
   });
 
-  const [tarifariosDetail, setTarifariosDetail] = useState<Tariff[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [pesoToFetch, setPesoToFetch] = useState<number | null>(null);
-
+  const [filteredTarifarios, setFilteredTarifarios] = useState<Tariff[]>([]);
   // Queries
   const { data: tarifariosData, isLoading: tarifariosLoading } =
     useGetTarifariosQuery();
@@ -77,11 +76,31 @@ export const CalcularTarifas: React.FC = () => {
       skip: pesoToFetch === null,
     });
 
+
+
   useEffect(() => {
-    if (tarifarioDetailsData) {
-      setTarifariosDetail(tarifarioDetailsData);
+    if (tarifarioDetailsData && Array.isArray(tarifarioDetailsData)) {
+      const filtered = tarifarioDetailsData
+        .filter((tariff: Tariff) => {
+          const regiaoTrimmed = tariff.Regiao.trim();
+          return (
+            !formData.regiao ||
+            regiaoTrimmed === formData.regiao.trim() ||
+            regiaoTrimmed === "Sem Regiao"
+          );
+        })
+        .map((tariff: Tariff) => ({
+          ...tariff,
+          preco: parseFloat(tariff.preco).toFixed(2),
+        }));
+
+      console.log("Filtered Tarifarios =>", filtered);
+
+      setFilteredTarifarios(filtered);
+    } else {
+      setFilteredTarifarios([]);
     }
-  }, [tarifarioDetailsData]);
+  }, [tarifarioDetailsData, formData.regiao]);
 
   const handleInputChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -120,8 +139,6 @@ export const CalcularTarifas: React.FC = () => {
 
     setPesoToFetch(parseFloat(formData.peso));
   };
-
-  console.log("Tarifarios Details ", tarifariosDetail);
 
   return (
     <Box
@@ -299,9 +316,10 @@ export const CalcularTarifas: React.FC = () => {
                         <TableCell>Preço</TableCell>
                       </TableRow>
                     </TableHead>
+
                     <TableBody>
-                      {tarifariosDetail?.length > 0 ? (
-                        tarifariosDetail.map((tariff, index) => (
+                      {filteredTarifarios?.length > 0 ? (
+                        filteredTarifarios.map((tariff, index) => (
                           <TableRow key={index}>
                             <TableCell>{tariff.Produto}</TableCell>
                             <TableCell>{tariff.Peso_min}</TableCell>
