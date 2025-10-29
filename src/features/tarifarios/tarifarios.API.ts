@@ -12,6 +12,9 @@ export const tarifariosApi = rootApi.injectEndpoints({
     getRegiao: builder.query({
       query: () => "/CA/regiao/",
     }),
+    getTarifarioDetails: builder.query({
+      query: (peso) => `/CA/tarifa/escalao/?peso=${peso}`,
+    }),
   }),
   overrideExisting: false,
 });
@@ -20,4 +23,5 @@ export const {
   useGetTarifariosQuery,
   useGetProdutoByTarifarioQuery,
   useGetRegiaoQuery,
+  useGetTarifarioDetailsQuery,
 } = tarifariosApi;

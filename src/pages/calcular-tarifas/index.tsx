@@ -15,28 +15,24 @@ import {
   Button,
   Card,
   CardContent,
-  Alert,
   InputAdornment,
   Stack,
 } from "@mui/material";
 import { Calculate, Search } from "@mui/icons-material";
-// import useGetTarifariosQuery from "../../hooks/tarifarios/useGetTarifariosQuery";
-
 import {
   useGetTarifariosQuery,
   useGetProdutoByTarifarioQuery,
   useGetRegiaoQuery,
+  useGetTarifarioDetailsQuery,
 } from "../../features/tarifarios/tarifarios.API";
 
 // Types
 interface Tariff {
-  id: number;
-  produto: string;
-  pesoMin: number;
-  pesoMax: number;
-  regiao: string;
+  Produto: string;
+  Peso_min: number;
+  Peso_max: number;
+  Regiao: string;
   preco: number;
-  moeda: string;
 }
 
 interface FormData {
@@ -50,65 +46,6 @@ interface FormErrors {
   peso?: string;
 }
 
-const TARIFF_DATA: Tariff[] = [
-  {
-    id: 1,
-    produto: "Carta",
-    pesoMin: 0,
-    pesoMax: 0.5,
-    regiao: "Local",
-    preco: 100,
-    moeda: "AOA",
-  },
-  {
-    id: 2,
-    produto: "Carta",
-    pesoMin: 0.5,
-    pesoMax: 1.0,
-    regiao: "Local",
-    preco: 150,
-    moeda: "AOA",
-  },
-  {
-    id: 3,
-    produto: "Encomenda",
-    pesoMin: 0.5,
-    pesoMax: 2.0,
-    regiao: "Nacional",
-    preco: 500,
-    moeda: "AOA",
-  },
-  {
-    id: 4,
-    produto: "Encomenda",
-    pesoMin: 2.0,
-    pesoMax: 5.0,
-    regiao: "Nacional",
-    preco: 800,
-    moeda: "AOA",
-  },
-  {
-    id: 5,
-    produto: "Carta",
-    pesoMin: 0,
-    pesoMax: 0.1,
-    regiao: "Internacional",
-    preco: 1500,
-    moeda: "AOA",
-  },
-  {
-    id: 6,
-    produto: "Encomenda",
-    pesoMin: 0.1,
-    pesoMax: 2.0,
-    regiao: "Internacional",
-    preco: 3500,
-    moeda: "AOA",
-  },
-];
-
-
-
 export const CalcularTarifas: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     tarifario: "",
@@ -116,44 +53,35 @@ export const CalcularTarifas: React.FC = () => {
     regiao: "",
     peso: "",
   });
-  const [calculatedTariff, setCalculatedTariff] = useState<Tariff | null>(null);
+
+  const [tarifariosDetail, setTarifariosDetail] = useState<Tariff[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [pesoToFetch, setPesoToFetch] = useState<number | null>(null);
 
-  const {
-    data: tarifariosData,
-    error: tarifariosError,
-    isLoading: tarifariosLoading,
-  } = useGetTarifariosQuery();
-  const {
-    data: produtosData,
-    error: produtosError,
-    isFetching: produtosFetching,
-  } = useGetProdutoByTarifarioQuery(formData.tarifario || "", {
-    skip: !formData.tarifario,
-  });
-  const {
-    data: regiaoData,
-    error: regiaoError,
-    isFetching: regiaoFetching,
-  } = useGetRegiaoQuery(undefined, { skip: !formData.produto });
+  // Queries
+  const { data: tarifariosData, isLoading: tarifariosLoading } =
+    useGetTarifariosQuery();
+  const { data: produtosData, isFetching: produtosFetching } =
+    useGetProdutoByTarifarioQuery(formData.tarifario || "", {
+      skip: !formData.tarifario,
+    });
+  const { data: regiaoData, isFetching: regiaoFetching } = useGetRegiaoQuery(
+    undefined,
+    {
+      skip: !formData.produto,
+    }
+  );
 
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      produto: "",
-    }));
-  }, [formData.tarifario]);
+  const { data: tarifarioDetailsData, isFetching: tarifarioDetailsFetching } =
+    useGetTarifarioDetailsQuery(pesoToFetch as number, {
+      skip: pesoToFetch === null,
+    });
 
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      regiao: "",
-    }));
-  }, [formData.produto]);
-
-  console.log("Form Data: ", formData)
-  console.log("Tarifarios Data: ", tarifariosData)
-  console.log("Products Data: ", produtosData)
+    if (tarifarioDetailsData) {
+      setTarifariosDetail(tarifarioDetailsData);
+    }
+  }, [tarifarioDetailsData]);
 
   const handleInputChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -177,9 +105,7 @@ export const CalcularTarifas: React.FC = () => {
 
     if (!formData.peso || parseFloat(formData.peso) <= 0) {
       newErrors.peso = "Por favor, insira um peso válido maior que 0";
-    }
-
-    if (parseFloat(formData.peso) > 50) {
+    } else if (parseFloat(formData.peso) > 50) {
       newErrors.peso = "O peso máximo permitido é 50 kg";
     }
 
@@ -190,25 +116,12 @@ export const CalcularTarifas: React.FC = () => {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
-    const weight = parseFloat(formData.peso);
-    const matchingTariff = TARIFF_DATA.find(
-      (tariff) =>
-        tariff.produto.toLowerCase() === formData.produto &&
-        tariff.regiao.toLowerCase() === formData.regiao &&
-        weight >= tariff.pesoMin &&
-        weight < tariff.pesoMax
-    );
-
-    setCalculatedTariff(matchingTariff || null);
+    setPesoToFetch(parseFloat(formData.peso));
   };
 
-  const filteredTariffs = TARIFF_DATA.filter(
-    (tariff) => tariff.regiao.toLowerCase() === formData.regiao
-  );
+  console.log("Tarifarios Details ", tarifariosDetail);
 
   return (
     <Box
@@ -235,7 +148,7 @@ export const CalcularTarifas: React.FC = () => {
           alignItems="flex-start"
         >
           {/* Form Section */}
-          <Box sx={{ width: { xs: "100%", md: "50%" } }}>
+          <Box sx={{ width: { xs: "100%", md: "40%" } }}>
             <Card elevation={3}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
@@ -244,6 +157,7 @@ export const CalcularTarifas: React.FC = () => {
 
                 <form onSubmit={handleSubmit}>
                   <Stack spacing={3}>
+                    {/* Tarifário */}
                     <TextField
                       select
                       fullWidth
@@ -255,12 +169,8 @@ export const CalcularTarifas: React.FC = () => {
                     >
                       {tarifariosLoading ? (
                         <MenuItem disabled>Carregando...</MenuItem>
-                      ) : tarifariosError ? (
-                        <MenuItem disabled>
-                          Erro ao carregar tarifários
-                        </MenuItem>
-                      ) : tarifariosData ? (
-                        tarifariosData.map((option: any) => (
+                      ) : (
+                        tarifariosData?.map((option: any) => (
                           <MenuItem
                             key={option.Descricao}
                             value={option.Descricao}
@@ -268,13 +178,10 @@ export const CalcularTarifas: React.FC = () => {
                             {option.Descricao}
                           </MenuItem>
                         ))
-                      ) : (
-                        <MenuItem disabled>
-                          Nenhum tarifário disponível
-                        </MenuItem>
                       )}
                     </TextField>
 
+                    {/* Produto */}
                     <TextField
                       select
                       fullWidth
@@ -286,10 +193,8 @@ export const CalcularTarifas: React.FC = () => {
                     >
                       {produtosFetching ? (
                         <MenuItem disabled>Carregando...</MenuItem>
-                      ) : produtosError ? (
-                        <MenuItem disabled>Erro ao carregar produtos</MenuItem>
-                      ) : produtosData && produtosData.length > 0 ? (
-                        produtosData.map((option: any) => (
+                      ) : (
+                        produtosData?.map((option: any) => (
                           <MenuItem
                             key={option.Descricao}
                             value={option.Descricao}
@@ -297,12 +202,10 @@ export const CalcularTarifas: React.FC = () => {
                             {option.Descricao}
                           </MenuItem>
                         ))
-                      ) : (
-                        <MenuItem disabled>Nenhum produto disponível</MenuItem>
                       )}
                     </TextField>
 
-                    {/* REGIÃO */}
+                    {/* Região */}
                     <TextField
                       select
                       fullWidth
@@ -314,10 +217,8 @@ export const CalcularTarifas: React.FC = () => {
                     >
                       {regiaoFetching ? (
                         <MenuItem disabled>Carregando...</MenuItem>
-                      ) : regiaoError ? (
-                        <MenuItem disabled>Erro ao carregar regiões</MenuItem>
-                      ) : regiaoData && regiaoData.length > 0 ? (
-                        regiaoData.map((option: any) => (
+                      ) : (
+                        regiaoData?.map((option: any) => (
                           <MenuItem
                             key={option.Descricao}
                             value={option.Descricao}
@@ -325,11 +226,10 @@ export const CalcularTarifas: React.FC = () => {
                             {option.Descricao}
                           </MenuItem>
                         ))
-                      ) : (
-                        <MenuItem disabled>Nenhuma região disponível</MenuItem>
                       )}
                     </TextField>
 
+                    {/* Peso */}
                     <TextField
                       fullWidth
                       label="Peso"
@@ -344,11 +244,7 @@ export const CalcularTarifas: React.FC = () => {
                         endAdornment: (
                           <InputAdornment position="end">kg</InputAdornment>
                         ),
-                        inputProps: {
-                          min: 0,
-                          step: 0.01,
-                          max: 50,
-                        },
+                        inputProps: { min: 0, step: 0.01, max: 50 },
                       }}
                       placeholder="0.00"
                     />
@@ -369,38 +265,22 @@ export const CalcularTarifas: React.FC = () => {
                     </Button>
                   </Stack>
                 </form>
-
-                {calculatedTariff && (
-                  <Alert severity="success" sx={{ mt: 3 }}>
-                    <Typography variant="h6">
-                      Tarifa Calculada: {calculatedTariff.preco}{" "}
-                      {calculatedTariff.moeda}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      {calculatedTariff.produto} • {calculatedTariff.pesoMin}-
-                      {calculatedTariff.pesoMax}kg • {calculatedTariff.regiao}
-                    </Typography>
-                  </Alert>
-                )}
-
-                {calculatedTariff === null && formData.peso && (
-                  <Alert severity="warning" sx={{ mt: 3 }}>
-                    Nenhuma tarifa encontrada para os critérios selecionados.
-                  </Alert>
-                )}
               </CardContent>
             </Card>
           </Box>
 
-          <Box sx={{ width: { xs: "100%", md: "50%" } }}>
+          {/* Result Table */}
+          <Box sx={{ width: { xs: "100%", md: "60%" } }}>
             <Card elevation={3}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                   <Search sx={{ mr: 1, color: "primary.main" }} />
                   <Typography variant="h6">
-                    Tabela de Tarifários -{" "}
-                    {formData.regiao.charAt(0).toUpperCase() +
-                      formData.regiao.slice(1)}
+                    Tabela de Tarifários –{" "}
+                    {formData.regiao
+                      ? formData.regiao.charAt(0).toUpperCase() +
+                        formData.regiao.slice(1)
+                      : "Selecione uma região"}
                   </Typography>
                 </Box>
 
@@ -410,90 +290,40 @@ export const CalcularTarifas: React.FC = () => {
                   sx={{ maxHeight: 400 }}
                 >
                   <Table stickyHeader size="small">
-                    <TableHead sx={{ backgroundColor: "#e2211d !important" }}>
+                    <TableHead>
                       <TableRow>
-                        <TableCell
-                          sx={{
-                            fontWeight: "bold",
-                            backgroundColor: "#e2211d !important",
-                            color: "white",
-                          }}
-                        >
-                          Produto
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            fontWeight: "bold",
-                            backgroundColor: "#e2211d !important",
-                            color: "white",
-                          }}
-                        >
-                          Peso Min (kg)
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            fontWeight: "bold",
-                            backgroundColor: "#e2211d !important",
-                            color: "white",
-                          }}
-                        >
-                          Peso Max (kg)
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            fontWeight: "bold",
-                            backgroundColor: "#e2211d !important",
-                            color: "white",
-                          }}
-                        >
-                          Região
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            fontWeight: "bold",
-                            backgroundColor: "#e2211d !important",
-                            color: "white",
-                          }}
-                        >
-                          Preço
-                        </TableCell>
+                        <TableCell>Produto</TableCell>
+                        <TableCell>Peso Min (kg)</TableCell>
+                        <TableCell>Peso Max (kg)</TableCell>
+                        <TableCell>Região</TableCell>
+                        <TableCell>Preço</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {filteredTariffs.map((tariff) => (
-                        <TableRow
-                          key={tariff.id}
-                          hover
-                          sx={{
-                            "&:last-child td, &:last-child th": { border: 0 },
-                            backgroundColor:
-                              calculatedTariff?.id === tariff.id
-                                ? "action.selected"
-                                : "inherit",
-                          }}
-                        >
-                          <TableCell>{tariff.produto}</TableCell>
-                          <TableCell>{tariff.pesoMin}</TableCell>
-                          <TableCell>{tariff.pesoMax}</TableCell>
-                          <TableCell>{tariff.regiao}</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            {tariff.preco} {tariff.moeda}
+                      {tarifariosDetail?.length > 0 ? (
+                        tarifariosDetail.map((tariff, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{tariff.Produto}</TableCell>
+                            <TableCell>{tariff.Peso_min}</TableCell>
+                            <TableCell>{tariff.Peso_max}</TableCell>
+                            <TableCell>{tariff.Regiao}</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              {tariff.preco} AKZ
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center">
+                            {tarifarioDetailsFetching
+                              ? "Carregando..."
+                              : "Nenhum tarifário encontrado."}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
-
-                {filteredTariffs.length === 0 && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 2, textAlign: "center" }}
-                  >
-                    Nenhum tarifário encontrado para esta região.
-                  </Typography>
-                )}
               </CardContent>
             </Card>
           </Box>
